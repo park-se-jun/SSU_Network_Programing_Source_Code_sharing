@@ -8,6 +8,7 @@
 #include <sys/time.h>
 #include <errno.h>
 #include <arpa/inet.h>
+#include <fcntl.h>
 
 int main(int argc, char** argv)
 {
@@ -18,6 +19,7 @@ int main(int argc, char** argv)
 	int maxFd = 0;
 	fd_set defaultFds, rFds;
 	int res, i;
+	int fd = open("test.c", O_RDWR|O_APPEND|O_CREAT, 0666);
 
 	if(argc != 2)
 	{
@@ -38,9 +40,10 @@ int main(int argc, char** argv)
 	srvAddr.sin_port = htons(atoi(argv[1]));
 
 	//소켓과 addr 구조체 바인딩
-	if(bind(listenSd, (struct sockaddr *) &srvAddr,
-				 sizeof(srvAddr)) == -1)
+	if(bind(listenSd, (struct sockaddr *) &srvAddr, sizeof(srvAddr)) == -1){
 		printf("bind error\n");
+		return -1;
+	}
 
 	//5개의 연결 허용.
 	if(listen(listenSd, 5) < 0)
@@ -95,9 +98,12 @@ int main(int argc, char** argv)
 						close(i);
 						continue;
 					}
-					rBuff[readLen] = '\0';
-					printf("\nClient(%d): %s\n",i-3,rBuff);
-					write(i,rBuff, strlen(rBuff));
+					rBuff[readLen] = '\n';
+					rBuff[readLen + 1] = '\0';
+					//printf("\nClient(%d): %s\n", i-3, rBuff);
+					write(fd, rBuff, strlen(rBuff));
+
+					write(i, rBuff, strlen(rBuff));
 				}
 			}
 		}

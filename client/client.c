@@ -15,9 +15,10 @@ int main(int argc, char** argv)
 	char wBuff[BUFSIZ];
 	char rBuff[BUFSIZ];
 
-	if(argc != 3)
+	if(argc != 3){
 		printf("Usage: %s [IP Address] [Port]\n", argv[0]);
-
+		return -1;
+	}
 	//클라이언트 소켓 생성. (IPv4, TCP를 사용함.)
 	clntSd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -36,8 +37,7 @@ int main(int argc, char** argv)
 	clntAddr.sin_port = htons(atoi(argv[2]));
 
 	//서버와 연결을 시도함. 실패 시 예외처리.
-	if(connect(clntSd, (struct sockaddr *) &clntAddr,
-			    sizeof(clntAddr)) == -1)
+	if(connect(clntSd, (struct sockaddr *) &clntAddr, sizeof(clntAddr)) == -1)
 	{
 		close(clntSd);
 		err_proc();
@@ -47,23 +47,26 @@ int main(int argc, char** argv)
 	while(1)
 	{
 		//키보드 입력을 받아 메모리 버퍼인 wBuff에 저장.
-		fgets(wBuff,BUFSIZ-1,stdin);
+		fgets(wBuff, BUFSIZ-1, stdin);
 		readLen = strlen(wBuff);
 
 		if(readLen < 2)
 			continue;
 
-		write(clntSd,wBuff,readLen-1);
+		write(clntSd, wBuff, readLen-1);
 		recvByte = 0;
 		maxBuff = BUFSIZ-1;
+
 
 		do{	//wBuff에 쓴 만큼, 서버로부터 데이터를 기다렸다가 출력.
 			recvByte += read(clntSd,rBuff,maxBuff);
 			maxBuff -= recvByte;
 		}while(recvByte < (readLen-1));
+
 		rBuff[recvByte] = '\0';
-		printf("Server: %s\n", rBuff);
+		printf("\nFile : %s\n", rBuff);
 		wBuff[readLen-1]='\0';
+
 		//입력이 END 였다면, 반복문 탈출.
 		if(!strcmp(wBuff,"END"))
 			break;
