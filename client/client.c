@@ -1,10 +1,4 @@
-#include <stdio.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-#include <arpa/inet.h>
+#include "client.h"
 
 void err_proc();
 int main(int argc, char** argv)
@@ -14,10 +8,13 @@ int main(int argc, char** argv)
 	int clntAddrLen, readLen, recvByte, maxBuff;
 	char wBuff[BUFSIZ];
 	char rBuff[BUFSIZ];
-
+	user_info* user;
 	if(argc != 3){
-		printf("Usage: %s [IP Address] [Port]\n", argv[0]);
-		return -1;
+		// printf("Usage: %s [IP Address] [Port]\n", argv[0]);
+		// return -1;
+		user_info_init(&user);
+		user_info_print(user);
+		return 0;
 	}
 	//클라이언트 소켓 생성. (IPv4, TCP를 사용함.)
 	clntSd = socket(AF_INET, SOCK_STREAM, 0);
