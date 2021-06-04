@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #define SCREEN_SIZE 21
 #define SOCKET int
+#define MAX_USER 5
 typedef struct user_info{
 	char* nickname;
 	int now_line;
@@ -15,7 +16,7 @@ typedef struct user_info{
 	SOCKET socket;
 }user_info;
 
-void show_code(int fd, int now_line, char* nickname){ // now_line은 현재 몇번째 라인인지
+void show_code(int fd, char* nickname){ // now_line은 현재 몇번째 라인인지
 	int fd_des = dup(fd);
 	char** lineptr;
     char** tmp_lineptr = lineptr ;
@@ -24,11 +25,6 @@ void show_code(int fd, int now_line, char* nickname){ // now_line은 현재 몇�
 
 	FILE *fp = fdopen(fd_des,"r+");
 	for(int i = 0; i <SCREEN_SIZE ;i++){
-		if(i == now_line){
-
-			strcpy(*tmp_lineptr,nickname);
-			continue;
-		}
 		getline(tmp_lineptr,&size[i],fp);
 
         tmp_lineptr = lineptr + size[i];
@@ -37,6 +33,14 @@ void show_code(int fd, int now_line, char* nickname){ // now_line은 현재 몇�
 	// for(int ){
 
     // }		
+}
+void show_user_pos(user_info* users, int length){
+	printf("==============================================\n");
+	printf("<현재 접속중인 유저 리스트 입니다>\n");
+	for(int i = 0; i<length; i++){
+		printf("|유저 이름 %10s ", (users[i].nickname));
+		printf("|커서 위치 %10d |\n",(users[i].now_line));
+	}
 }
 void show_commandline(){
 
@@ -55,8 +59,8 @@ void __init_nickname(user_info* user){
 	ssize_t ret;
 	printf("공백 없는 닉네임을 입력해주세요: ");
 	ret = getline(&(user->nickname),&size,stdin);
-	int newline = strlen(user->filename)-1;
-	(user->filename)[newline] ='\0';
+	int newline = strlen(user->nickname)-1;
+	(user->nickname)[newline] ='\0';
 	return ;
 }
 void __init_filename(user_info* user){

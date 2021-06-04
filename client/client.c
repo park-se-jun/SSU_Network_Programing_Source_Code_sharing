@@ -8,12 +8,15 @@ int main(int argc, char** argv)
 	int clntAddrLen, readLen, recvByte, maxBuff;
 	char wBuff[BUFSIZ];
 	char rBuff[BUFSIZ];
-	user_info* user;
+	user_info user_list[MAX_USER];
+	user_info* me;
 	if(argc != 3){
 		// printf("Usage: %s [IP Address] [Port]\n", argv[0]);
 		// return -1;
-		user_info_init(&user);
-		user_info_print(user);
+		user_info_init(&me);
+		user_info_print(me);
+		show_user_pos(me, 1);
+		show_commandline();
 		return 0;
 	}
 	//클라이언트 소켓 생성. (IPv4, TCP를 사용함.)
