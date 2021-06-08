@@ -24,22 +24,25 @@ void *client_connect(void * data) //클라이언트가 연결되면, 파일 입�
 {
 	int connectSd = *((int *) data);
 
-	while(1){	//소스 코드의 이름을 입력받음.
-		if(init_source(connectSd) == 0){	//성공적인 입력
-			write(connectSd, "SUCESS", 7);
-			break;
-		}
+	//소스 코드의 이름을 입력받음.
+	if(init_source(connectSd) == 0)	//성공적인 입력
+		write(connectSd, "SUCESS", 7);
+
+	else{	//소스코드 파일 생성 과정에서 에러 발생
+		write(connectSd, "FAIL", 5);
+		return NULL;
 	}
+
 
 	while(1)	//클라이언트로부터 데이터를 읽어온다.
 	{
 		if(write_source(connectSd) == -1)
 			break;
-
 	}
 
 	fprintf(stderr, "The client is disconnected.\n");
 	close(connectSd);
+	return NULL;
 }
 
 int init_source(int connectSd){
@@ -50,7 +53,7 @@ int init_source(int connectSd){
 		fprintf(stderr, "Input error!\n");
 		write(connectSd, "FAIL", 5);
 		close(connectSd);
-		exit(0);
+		return -1;
 	}
 
 	source_name[name_length] = '\0';
@@ -61,8 +64,9 @@ int init_source(int connectSd){
 	if(source_fd == -1){
 		printf("File create error!\n");
 		write(connectSd, "FAIL", 5);
+		close(source_fd);
 		close(connectSd);
-		exit(1);
+		return -1;
 	}
 
 	source = (char *) mmap(NULL, BUFSIZ, PROT_READ|PROT_WRITE, MAP_SHARED, source_fd, 0);
@@ -75,6 +79,7 @@ int write_source(int connectSd){	//클라이언트로부터 읽어서 파일에 
 	char rBuff[BUFSIZ];
 	memset(rBuff, 0, BUFSIZ);
 	int read_length = read(connectSd, rBuff, sizeof(rBuff) - 1);
+	printf("read_length : %d\n", read_length);
 
 	rBuff[read_length] = '\n';
 	rBuff[++read_length] = '\0';
@@ -86,4 +91,6 @@ int write_source(int connectSd){	//클라이언트로부터 읽어서 파일에 
 	curr_src += read_length;
 	printf("current source code is %d Byte\n", curr_src);
 	write(connectSd, source, curr_src);
+
+	return 0;
 }

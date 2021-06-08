@@ -40,12 +40,16 @@ int create_source(int client_socket){	//서버 연결 후, 소스코드 이름 �
 
 int input_text(int client_socket){	//소스코드 내용 작성 함수
 	char wBuff[BUFSIZ], rBuff[BUFSIZ];
+	memset(wBuff, 0, BUFSIZ);
+	memset(rBuff, 0, BUFSIZ);
+
 	printf("input text : ");
 	fgets(wBuff, BUFSIZ - 1, stdin);
 	int write_length = strlen(wBuff);
 	write(client_socket, wBuff, write_length - 1);
-
+	
 	read(client_socket, rBuff, sizeof(rBuff) - 1);
 	printf("\n%s\n", rBuff);
+
 	return 0;
 }
