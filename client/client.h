@@ -13,8 +13,58 @@ typedef struct user_info{
 	char* nickname;
 	int now_line;
 	char* filename;
-	SOCKET socket;
 }user_info;
+
+
+void print_error();
+int connect_source(user_info *user , SOCKET client_socket);
+int input_text(int client_socket);
+
+void print_error(){
+	fprintf(stderr,"Error: %s\n", strerror(errno));
+	exit(errno);
+}
+
+int connect_source(user_info * user, SOCKET client_socket){	//서버 연결 후, 소스코드 이름 작성
+	char rBuff[10];
+	char* filename = user->filename;
+	int file_length = strlen(filename);
+
+	write(client_socket, filename , file_length);
+	printf("LOADING...\n");
+	read(client_socket, rBuff, 10);
+
+	if(!strcmp(rBuff, "SUCESS")){
+		printf("SUCESS: connect to %s\n",filename);
+		return 0;
+	}
+
+	else{
+		printf("FAIL: connect to %s\n",filename);
+		return -1;
+	}
+	return 0;
+}
+
+int input_text(int client_socket){	//소스코드 내용 작성 함수
+	char wBuff[BUFSIZ], rBuff[BUFSIZ];
+
+	printf("input text : ");
+	fgets(wBuff, BUFSIZ - 1, stdin);
+	int write_length = strlen(wBuff);
+	write(client_socket, wBuff, write_length - 1);
+
+	return 0;
+}
+
+int print_source(int client_socket){
+	char rBuff[BUFSIZ];
+	system("clear");
+	read(client_socket, rBuff, sizeof(rBuff) - 1);
+	printf("\n%s", rBuff);
+
+	return 1;
+}
 
 void show_code(int fd, char* nickname){ // now_line은 현재 몇번째 라인인지
 	int fd_des = dup(fd);
@@ -75,21 +125,16 @@ void __init_filename(user_info* user){
 void __init_currentLine(user_info* user){
 	user->now_line = 0;
 }
-void __init_socket(user_info* user){
-	user->socket = -1;
-}
-void user_info_init(user_info** user_ptr){
+
+void user_info_init(user_info** user_ptr,SOCKET client_socket){
 	
 	user_info* user = malloc(sizeof(user_info));
 	__init_filename(user);
 	__init_nickname(user);
 	__init_currentLine(user);
-	__init_socket(user);
 	*user_ptr = user;
 }
-void user_info_set_socker(user_info* user, SOCKET sd){
-	user->socket = sd;
-}
+
 void user_info_print(user_info* user){
-	printf("filename: %s \nnickname: %s \ncurrentLine: %d \nsocket: %d \n",user->filename,user->nickname,user->now_line,user->socket);
+	printf("filename: %s \nnickname: %s \ncurrentLine: %d \n",user->filename,user->nickname,user->now_line);
 }
