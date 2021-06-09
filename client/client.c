@@ -1,50 +1,40 @@
 #include "client.h"
 
-int main(int argc, char** argv)
+int main(int argc, char *argv[])
 {
-	int clntSd;
-	struct sockaddr_in clntAddr;
+  int sock;
+  struct sockaddr_in server_address;
 
-	if(argc != 3)
-		printf("Usage: %s [IP Address] [Port]\n", argv[0]);
+  //쓰레드 송신 , 쓰레드 수신
+  pthread_t snd_thread, rcv_thread;
+  void* thread_return;
 
-	//클라이언트 소켓 생성. (IPv4, TCP를 사용함.)
-	clntSd = socket(AF_INET, SOCK_STREAM, 0);
+  if(argc != 3){
+    printf("usage : %s <ip> <port>\n" , argv[0]);
+    exit(1);
+  }
 
-	if(clntSd == -1)
-		print_error();
+  //IPv4, TCP 소켓 생성
+  sock = socket(PF_INET, SOCK_STREAM,0);
 
-	printf("==== client program =====\n");
+  //서버 주소정보 초기화
+  memset(&server_address, 0, sizeof(server_address));
+  server_address.sin_family=AF_INET;
+  server_address.sin_addr.s_addr=inet_addr(argv[1]);
+  server_address.sin_port=htons(atoi(argv[2]));
 
-	memset(&clntAddr, 0, sizeof(clntAddr));
-	/*
-		클라이언트 주소 초기화.
-		IPv4를 사용하고, IP주소와 포트번호는 매개인자를 사용함.
-	*/
-	clntAddr.sin_family = AF_INET;
-	clntAddr.sin_addr.s_addr = inet_addr(argv[1]);
-	clntAddr.sin_port = htons(atoi(argv[2]));
+  //서버 주소 정보를 기반으로 연결요청, 이때 비로소 클라이언트 소켓이됨.
+  connect(sock, (struct sockaddr*)&server_address, sizeof(server_address));
 
-	//서버와 연결을 시도함. 실패 시 예외처리.
-	if(connect(clntSd, (struct sockaddr *) &clntAddr,
-			    sizeof(clntAddr)) == -1)
-	{
-		close(clntSd);
-		print_error();
-	}
+  //쓰레드 생성 및 실행
+  pthread_create(&snd_thread, NULL, send_msg, (void*)&sock);
+  pthread_create(&rcv_thread, NULL, recv_msg, (void*)&sock);
 
-	if(create_source(clntSd) == -1){
-		close(clntSd);
-		printf("Source code create error!\n");
-		exit(0);
-	}
+  //쓰레드 종료까지 대기
+  pthread_join(snd_thread, &thread_return);
+  pthread_join(rcv_thread, &thread_return);
 
-	while(1){
-		if(input_text(clntSd) == -1)
-			break;
-	}
-
-	close(clntSd);
-
-	return 0;
+  //클라이언트 소켓 연결 종료
+  close(sock);
+  return 0;
 }

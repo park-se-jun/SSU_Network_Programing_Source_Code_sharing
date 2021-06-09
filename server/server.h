@@ -11,86 +11,114 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <arpa/inet.h>
 
-void *client_connect(void *data);
-int init_source(int connectSd);
-int write_source(int connectSd);
+#define BUF_SIZE 8192
+#define MAX_CLIENT 10
 
-struct stat sb;
-char *source;
+void *service_client(void* arg);
+void send_msg(char* msg, int len);
+void error_print(char * message);
+int init_source();
+
+
+int client_count = 0; //서버에 접속한 클라이언트 수
+int client_sockets[MAX_CLIENT]; //서버에 접속한 클라이언트들의 Socket FD를 저장한 배열
+pthread_mutex_t mutex;
+char *source; //쓰레드들이 공유할 메모리
 int source_fd, curr_src = 0;
 
-void *client_connect(void * data) //클라이언트가 연결되면, 파일 입출력 작업을 한다.
-{
-	int connectSd = *((int *) data);
+//연결된 클라이언트에 대해 처리하는 쓰레드
+void* service_client(void* arg){
+  int client_socket = *((int*)arg);
+  int str_len = 0, i;
+  char msg[BUF_SIZE];
+  memset(msg, 0, BUF_SIZE);
 
-	//소스 코드의 이름을 입력받음.
-	if(init_source(connectSd) == 0)	//성공적인 입력
-		write(connectSd, "SUCESS", 7);
+  printf("\nGuest %d - Service_client run\n" , client_socket - 3);
 
-	else{	//소스코드 파일 생성 과정에서 에러 발생
-		write(connectSd, "FAIL", 5);
-		return NULL;
-	}
+  //클라이언트로부터 데이터를 수신받음. 루프를 빠져나가면 연결이 종료된 것으로 간주함.
+  while ( (str_len = read(client_socket , msg , sizeof(msg))) != 0) {
+    printf("Guest %d send text %d byte\n", client_socket - 3, str_len);
+    msg[str_len] = '\n';
+    memcpy(source + curr_src, msg, str_len);
+    curr_src += str_len;
+
+    printf("Current source code is %d byte\n", curr_src);
+
+    //send_msg 함수 호출
+    send_msg(source, curr_src);
+  }
 
 
-	while(1)	//클라이언트로부터 데이터를 읽어온다.
-	{
-		if(write_source(connectSd) == -1)
-			break;
-	}
+  printf("\nClient_socket delete\n");
 
-	fprintf(stderr, "The client is disconnected.\n");
-	close(connectSd);
-	return NULL;
+  pthread_mutex_lock(&mutex);      //뮤텍스 lock
+
+  //disconnected 된 클라이언트 삭제
+  for (i = 0; i < client_count; i++) {
+
+      printf("\nclient_socket : %d\n" , client_socket);
+      printf("client_sockets[%d] : %d\n" , i,  client_sockets[i]);
+
+      //현재 해당하는 파일 디스크립터를 찾으면
+      if (client_socket == client_sockets[i]) {
+          //클라이언트가 연결요청을 했으므로 해당 정보를 덮어씌워 삭제
+          while (i < client_count -1) {
+            puts("\nAnother client connection request came in\n");
+            printf("i : %d\n" , i);
+            printf("client_sockets[i+1] : %d\n" ,  client_sockets[i+1]);
+
+            client_sockets[i] = client_sockets[i+1];
+            i++;
+          }
+          break;
+      }
+  }
+
+  client_count--;                     //클라이언트 수 감소
+  pthread_mutex_unlock(&mutex);    //뮤텍스 unlock
+  close(client_socket);             //클라이언트와의 송수신을 위한 생성했던 소켓종료
+
+  printf("\nClosed Client_socket and stop thread\n");
+  printf("Current client : %d\n" , client_count);
+
+  return NULL;
 }
 
-int init_source(int connectSd){
-	char source_name[BUFSIZ];
-	int name_length = read(connectSd, source_name, sizeof(source_name) - 1);
+//연결되어 있는 모든 클라이언트들에게 소스코드의 내용을 전송.
+void send_msg(char *msg, int len){
+  int i;
 
-	if(name_length <= 0){
-		fprintf(stderr, "Input error!\n");
-		write(connectSd, "FAIL", 5);
-		close(connectSd);
-		return -1;
-	}
+  pthread_mutex_lock(&mutex);      //뮤텍스 lock
+  for (i = 0; i < client_count; i++) {
+      //현재 연결된 모든 클라이언트에게 메시지 전송
+      write(client_sockets[i], msg, len);
+  }
+  pthread_mutex_unlock(&mutex);    //뮤텍스 unlock
 
-	source_name[name_length] = '\0';
-	printf("Current working source code name is %s\n", source_name);
-	source_fd = shm_open(source_name, O_RDWR|O_CREAT, 0777);
-	ftruncate(source_fd, BUFSIZ);
-
-	if(source_fd == -1){
-		printf("File create error!\n");
-		write(connectSd, "FAIL", 5);
-		close(source_fd);
-		close(connectSd);
-		return -1;
-	}
-
-	source = (char *) mmap(NULL, BUFSIZ, PROT_READ|PROT_WRITE, MAP_SHARED, source_fd, 0);
-	memset(source, 0, BUFSIZ);
-	close(source_fd);
-	return 0;
 }
 
-int write_source(int connectSd){	//클라이언트로부터 읽어서 파일에 쓴다.
-	char rBuff[BUFSIZ];
-	memset(rBuff, 0, BUFSIZ);
-	int read_length = read(connectSd, rBuff, sizeof(rBuff) - 1);
-	printf("read_length : %d\n", read_length);
 
-	rBuff[read_length] = '\n';
-	rBuff[++read_length] = '\0';
+//에러 메시지 전송
+void error_print(char *message){
+  fputs(message , stderr);
+  fputc('\n' , stderr);
+  exit(-1);
+}
 
-	if(read_length <= 0)
-		return -1;
+//공유 메모리 할당 및 초기화
+int init_source(){
+  source_fd = shm_open("/example", O_RDWR|O_CREAT|O_TRUNC, 0777);
+  ftruncate(source_fd, BUFSIZ);
 
-	memcpy(source + curr_src, rBuff, read_length);
-	curr_src += read_length;
-	printf("current source code is %d Byte\n", curr_src);
-	write(connectSd, source, curr_src);
+  if(source_fd == -1){
+  	close(source_fd);
+  	return -1;
+  }
 
-	return 0;
+  source = (char *) mmap(NULL, BUFSIZ, PROT_READ|PROT_WRITE, MAP_SHARED, source_fd, 0);
+  memset(source, 0, BUFSIZ);
+  close(source_fd);
+  return 0;
 }

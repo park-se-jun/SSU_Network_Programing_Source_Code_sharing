@@ -1,5 +1,5 @@
-CC=gcc
-CFLAGS= -Wall -g -I.
+CC = gcc
+CFLAGS = -Wall -g -I.
 DEPS = server.h
 OBJ = server.o
 OPT = -lpthread -lrt
