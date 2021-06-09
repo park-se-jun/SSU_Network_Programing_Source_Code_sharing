@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
 
   //IPv4, TCP 소켓 생성
   sock = socket(PF_INET, SOCK_STREAM,0);
-
+  
   //서버 주소정보 초기화
   memset(&server_address, 0, sizeof(server_address));
   server_address.sin_family=AF_INET;

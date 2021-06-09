@@ -35,52 +35,56 @@ void* service_client(void* arg){
   char msg[BUF_SIZE];
   memset(msg, 0, BUF_SIZE);
 
-  printf("\nGuest %d - Service_client run\n" , client_socket - 3);
+  printf("Guest %d - Service_client run\n" , client_socket);
 
   //클라이언트로부터 데이터를 수신받음. 루프를 빠져나가면 연결이 종료된 것으로 간주함.
   while ( (str_len = read(client_socket , msg , sizeof(msg))) != 0) {
-    printf("Guest %d send text %d byte\n", client_socket - 3, str_len);
+    printf("Guest %d send text %d byte\n", client_socket, str_len);
+
+    if(!strcmp(msg, "&CLEAR&")){
+      printf("Guest %d request to source code clean\n", client_socket);
+      memset(source, 0, BUF_SIZE);
+      curr_src = 0;
+      continue;
+    }
+    /*
+    else if(!strcmp(msg, "&MODIFY&")){
+      memset(msg, 0, BUF_SIZE);
+      str_len = read(client_socket, msg, sizeof(msg));
+      msg[str_len] = '\0';
+      curr_src = strlen(msg);
+      msg[str_len] = '\n';
+      memcpy(source, msg, str_len);
+      send_msg(source, curr_src);
+      continue;
+    }
+    */
     msg[str_len] = '\n';
     memcpy(source + curr_src, msg, str_len);
     curr_src += str_len;
-
     printf("Current source code is %d byte\n", curr_src);
-
-    //send_msg 함수 호출
-    send_msg(source, curr_src);
+    send_msg(source, curr_src);  //send_msg 함수 호출
   }
 
-
-  printf("\nClient_socket delete\n");
-
-  pthread_mutex_lock(&mutex);      //뮤텍스 lock
+  printf("Guest %d is disconnected\n", client_socket);
+  pthread_mutex_lock(&mutex); //뮤텍스 lock
 
   //disconnected 된 클라이언트 삭제
-  for (i = 0; i < client_count; i++) {
-
-      printf("\nclient_socket : %d\n" , client_socket);
-      printf("client_sockets[%d] : %d\n" , i,  client_sockets[i]);
-
+  for(i = 0; i < client_count; i++){
       //현재 해당하는 파일 디스크립터를 찾으면
-      if (client_socket == client_sockets[i]) {
-          //클라이언트가 연결요청을 했으므로 해당 정보를 덮어씌워 삭제
-          while (i < client_count -1) {
-            puts("\nAnother client connection request came in\n");
-            printf("i : %d\n" , i);
-            printf("client_sockets[i+1] : %d\n" ,  client_sockets[i+1]);
-
-            client_sockets[i] = client_sockets[i+1];
-            i++;
-          }
-          break;
-      }
+    if(client_socket == client_sockets[i]){
+        //클라이언트가 연결요청을 했으므로 해당 정보를 덮어씌워 삭제
+        while (i < client_count -1){
+          client_sockets[i] = client_sockets[i+1];
+          i++;
+        }
+        break;
+    }
   }
 
-  client_count--;                     //클라이언트 수 감소
-  pthread_mutex_unlock(&mutex);    //뮤텍스 unlock
-  close(client_socket);             //클라이언트와의 송수신을 위한 생성했던 소켓종료
-
-  printf("\nClosed Client_socket and stop thread\n");
+  client_count--; //클라이언트 수 감소
+  pthread_mutex_unlock(&mutex); //뮤텍스 unlock
+  close(client_socket); //클라이언트와의 송수신을 위한 생성했던 소켓종료
   printf("Current client : %d\n" , client_count);
 
   return NULL;

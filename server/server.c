@@ -7,12 +7,12 @@ int main(int argc, char * argv[]){
   pthread_t thread;
 
   if(argc != 2){ //매개인자 갯수를 만족하지 못할 경우
-    printf("Usage : %s <port> \n" , argv[0]);
+    printf("Usage : %s <port>\n" , argv[0]);
     exit(1);
   }
-  
+
   system("clear");
-  printf("\nServer Start\n");
+  printf("Port is %s, Server Start\n", argv[1]);
 
   pthread_mutex_init(&mutex, NULL); //뮤텍스 생성
 
@@ -43,7 +43,7 @@ int main(int argc, char * argv[]){
     //클라이언트의 연결요청이 들어오면 클라이언트와의 송수신을 위한 소켓을 생성
     client_socket = accept(server_socket , (struct sockaddr*)&client_address, &client_address_size);
     //클라이언트의 ip 정보를 문자열로 변환 후 출력
-    printf("\nconnected client ip : %s\n" , inet_ntoa(client_address.sin_addr));
+    printf("connected client ip : %s\n" , inet_ntoa(client_address.sin_addr));
 
     /*
       클라이언트 접속 수를 카운팅하고, 클라이언트 소켓들의 배열에 저장.
@@ -52,8 +52,6 @@ int main(int argc, char * argv[]){
     pthread_mutex_lock(&mutex);
     client_sockets[client_count++] = client_socket;
     pthread_mutex_unlock(&mutex);
-
-    printf("Guest %d connected\n" , client_count);
 
     //새로 들어온 클라이언트를 대상으로 하는 쓰레드 생성 및 실행
     pthread_create(&thread , NULL, service_client, (void*)&client_socket);
