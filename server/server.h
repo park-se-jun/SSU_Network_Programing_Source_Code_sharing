@@ -20,7 +20,7 @@ void *service_client(void* arg);
 void send_msg(char* msg, int len);
 void error_print(char * message);
 int init_source();
-
+void modify_source(char *msg);
 
 int client_count = 0; //서버에 접속한 클라이언트 수
 int client_sockets[MAX_CLIENT]; //서버에 접속한 클라이언트들의 Socket FD를 저장한 배열
@@ -47,18 +47,19 @@ void* service_client(void* arg){
       curr_src = 0;
       continue;
     }
-    /*
+
     else if(!strcmp(msg, "&MODIFY&")){
       memset(msg, 0, BUF_SIZE);
       str_len = read(client_socket, msg, sizeof(msg));
+      printf("modify data %d byte\n", str_len);
       msg[str_len] = '\0';
-      curr_src = strlen(msg);
-      msg[str_len] = '\n';
-      memcpy(source, msg, str_len);
+      printf("modify data is %s\n", msg);
+      modify_source(msg);
+      curr_src = strlen(source);
       send_msg(source, curr_src);
       continue;
     }
-    */
+
     msg[str_len] = '\n';
     memcpy(source + curr_src, msg, str_len);
     curr_src += str_len;
@@ -125,4 +126,41 @@ int init_source(){
   memset(source, 0, BUFSIZ);
   close(source_fd);
   return 0;
+}
+
+void modify_source(int line, char *buff){ //소스코드 수정
+  /*
+  int i = 0, count = 0, front, rear;
+  int buff_size = strlen(buff), source_size = strlen(source);
+  char modify_buff[BUF_SIZE];
+  memset(modify_buff, 0, BUF_SIZE);
+
+  while(source[i] != '\0'){
+    if(source[i] == '\n')
+      count++;
+
+    if(count == line)
+      break;
+
+    i++;
+  }
+
+  rear = i--;
+
+  while(source[i] != '\n'){
+    i--;
+  }
+
+  front = i;
+
+  for(int i = 0; i < front; i++)
+    modify_buff[i] = source[i];
+
+  buff[buff_size] = '\n';
+
+  memmove(modify_buff + (front + 1), buff, buff_size);
+  memmove(modify_buff + (front + buff_size + 1), source + (rear + 1), source_size - rear);
+  memset(source, 0, BUF_SIZE);
+  memmove(source, modify_buff, BUF_SIZE);
+  */
 }
