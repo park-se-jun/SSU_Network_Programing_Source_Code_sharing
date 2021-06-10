@@ -70,9 +70,13 @@ void error_print(char *msg){
 
 void print_help(){
   fflush(stdout);
-  printf("\n[q or Q = exit / exe or EXE = compile]\n");
-  printf("[cls or CLS = Source code clean / #n = row n modify]\n");
-  printf(" : ");
+  printf("\n\n= = = = [command] = = = =");
+  printf("\n[q or Q = exit]");
+  printf("\n[exe or EXE = compile]");
+  printf("\n[cls or CLS = Source code clean]");
+  printf("\n[#n = row n modify]");
+  printf("\n= = = = = = = = = = = = =");
+  printf("\nInput text : ");
   fflush(stdout);
 }
 
@@ -105,7 +109,15 @@ void handle_command(char *msg, int sock){
       return ;
     }
 
-    else return ;
+    else{
+      system("clear");
+      printf("<current source code>\n\n");  //stdin 출력
+      memset(source, 0, BUF_SIZE);
+      print_source(source, 0);
+      putchar('\n');
+      print_help();
+      return ;
+    }
   }
 
   else if(!strcmp(msg, "#n\n") || !strcmp(msg, "#N\n")){  //소스코드 수정
