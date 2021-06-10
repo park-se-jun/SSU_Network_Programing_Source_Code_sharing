@@ -26,7 +26,7 @@ int client_count = 0; //서버에 접속한 클라이언트 수
 int client_sockets[MAX_CLIENT]; //서버에 접속한 클라이언트들의 Socket FD를 저장한 배열
 pthread_mutex_t mutex;
 char *source; //쓰레드들이 공유할 메모리
-int source_fd, curr_src = 0;
+int source_fd, curr_src = 0, curr_low = 0;
 
 //연결된 클라이언트에 대해 처리하는 쓰레드
 void* service_client(void* arg){
@@ -41,21 +41,23 @@ void* service_client(void* arg){
   while ( (str_len = read(client_socket , msg , sizeof(msg))) != 0) {
     printf("Guest %d send text %d byte\n", client_socket, str_len);
 
+    //소스코드 클린 명령
     if(!strcmp(msg, "&CLEAR&")){
       printf("Guest %d request to source code clean\n", client_socket);
       memset(source, 0, BUF_SIZE);
       curr_src = 0;
+      curr_low = 0;
       continue;
     }
 
+    //소스코드 수정 명령
     else if(!strcmp(msg, "&MODIFY&")){
-      memset(msg, 0, BUF_SIZE);
       str_len = read(client_socket, msg, sizeof(msg));
-      printf("modify data %d byte\n", str_len);
       msg[str_len] = '\0';
-      printf("modify data is %s\n", msg);
       modify_source(msg);
       curr_src = strlen(source);
+      printf("Guest %d modify source code\n", client_socket);
+      printf("Current source code is %d byte, %d low\n", curr_src, curr_low);
       send_msg(source, curr_src);
       continue;
     }
@@ -63,7 +65,8 @@ void* service_client(void* arg){
     msg[str_len] = '\n';
     memcpy(source + curr_src, msg, str_len);
     curr_src += str_len;
-    printf("Current source code is %d byte\n", curr_src);
+    curr_low++;
+    printf("Current source code is %d byte, %d lows\n", curr_src, curr_low);
     send_msg(source, curr_src);  //send_msg 함수 호출
   }
 
@@ -87,7 +90,6 @@ void* service_client(void* arg){
   pthread_mutex_unlock(&mutex); //뮤텍스 unlock
   close(client_socket); //클라이언트와의 송수신을 위한 생성했던 소켓종료
   printf("Current client : %d\n" , client_count);
-
   return NULL;
 }
 
@@ -103,7 +105,6 @@ void send_msg(char *msg, int len){
   pthread_mutex_unlock(&mutex);    //뮤텍스 unlock
 
 }
-
 
 //에러 메시지 전송
 void error_print(char *message){
@@ -128,39 +129,94 @@ int init_source(){
   return 0;
 }
 
-void modify_source(int line, char *buff){ //소스코드 수정
-  /*
-  int i = 0, count = 0, front, rear;
-  int buff_size = strlen(buff), source_size = strlen(source);
+void modify_source(char *msg){ //소스코드 수정
+  int line = atoi(msg); //몇 번째 라인을 수정할 것인지를 저장.
+  int i = 0, modify_next;
   char modify_buff[BUF_SIZE];
   memset(modify_buff, 0, BUF_SIZE);
 
-  while(source[i] != '\0'){
-    if(source[i] == '\n')
-      count++;
-
-    if(count == line)
+  while(1){ //msg에서 수정하려는 텍스트만 추출하기 위한 작업
+    if(msg[i] == ' '){
+      i++;
       break;
-
+    }
     i++;
   }
+  //수정할 텍스트의 크기를 저장.
+  modify_next = strlen(&msg[i]);
+  //modify_buff에 수정할 내용을 저장한다.
+  memmove(modify_buff, &msg[i], modify_next);
 
-  rear = i--;
+  if(line == 1){ //첫 행을 수정하려는 경우
+    int i = 0;
+    char temp[BUF_SIZE];
 
-  while(source[i] != '\n'){
-    i--;
+    while(1){
+      if(source[i] == '\n'){
+        i++;
+        break;
+      }
+        i++;
+    }
+    //temp에 source의 첫번째 행을 제외한 나머지 행들을 넣는다.
+    memmove(temp, &source[i], BUF_SIZE - modify_next);
+    //modify_buff에 temp를 붙인다.
+    memmove(&modify_buff[modify_next], temp, BUF_SIZE - modify_next);
+    //source에 수정사항을 덧붙인다.
+    memmove(source, modify_buff, BUF_SIZE);
   }
 
-  front = i;
+  else if(line == curr_low){ //마지막 행을 수정하려는 경우
+    int i = curr_src-2;
 
-  for(int i = 0; i < front; i++)
-    modify_buff[i] = source[i];
+    while(1){
+      if(source[i] == '\n')
+        break;
+      i--;
+    }
 
-  buff[buff_size] = '\n';
+    memmove(&source[i + 1], modify_buff, modify_next);
+  }
 
-  memmove(modify_buff + (front + 1), buff, buff_size);
-  memmove(modify_buff + (front + buff_size + 1), source + (rear + 1), source_size - rear);
-  memset(source, 0, BUF_SIZE);
-  memmove(source, modify_buff, BUF_SIZE);
-  */
+  else{ //첫 행과 마지막 행 사이를 수정하려는 경우
+    int line_count = 0, i = 0;
+    int tail_size = 0;
+    char head[BUF_SIZE], tail[BUF_SIZE];
+
+    memset(head, 0, BUF_SIZE);
+    memset(tail, 0, BUF_SIZE);
+
+    while(1){
+      if(source[i] == '\n')
+        line_count++;
+
+      if(line_count == line){
+        i++;
+        break;
+      }
+      i++;
+    }
+    //tail에 수정하려는 행의 이후 행들을 저장
+    memmove(tail, &source[i], BUF_SIZE - i);
+    line_count = 0;
+
+    while(1){
+      if(source[i] == '\n')
+        line_count++;
+
+      if(line_count == line){
+        break;
+      }
+      i--;
+    }
+    //head에 수정하려는 행의 이전 행들을 저장
+    memmove(head, source, BUF_SIZE);
+    memset(source, 0, BUF_SIZE);
+    //source에 head를 붙임.
+    memmove(source, head, BUF_SIZE - i);
+    memmove(&source[i + 1], modify_buff, modify_next);
+    tail_size = BUF_SIZE - (i + modify_next + 1);
+    memmove(&source[i + modify_next + 1], tail, tail_size);
+  }
+
 }

@@ -13,7 +13,7 @@ void *recv_msg(void *arg);
 void error_print(char *msg);
 void print_help();
 void handle_command(char *msg, int sock);
-void compile_code();
+void compile_code(char *code_name, char *exe_name);
 void print_source(char *code, int length);
 
 char source[BUF_SIZE];
@@ -80,7 +80,7 @@ void print_help(){
 }
 
 void handle_command(char *msg, int sock){
-  char buff[10];
+  char buff[10], code_name[20], exe_name[20];
 
   if(!strcmp(msg, "q\n") || !strcmp(msg, "Q\n")){ //클라이언트 종료
       close(sock);
@@ -88,7 +88,13 @@ void handle_command(char *msg, int sock){
   }
 
   else if(!strcmp(msg, "exe\n") || !strcmp(msg, "EXE\n")){ //소스코드 컴파일 후 종료
-    compile_code();
+    printf("\nPlease enter source file name (example : hello.c) : ");
+    scanf("%s", code_name);
+
+    printf("\nPlease enter execute file name (example : hello) : ");
+    scanf("%s", exe_name);
+
+    compile_code(code_name, exe_name);
     close(sock);
     exit(1);
   }
@@ -120,34 +126,21 @@ void handle_command(char *msg, int sock){
   }
 
   else if(!strcmp(msg, "#n\n") || !strcmp(msg, "#N\n")){  //소스코드 수정
-    char line[10];
     char buff[BUF_SIZE];
-    char send_modify[BUF_SIZE + sizeof(line)];
-
-    printf("\nWhich line do you want to modify? (please enter the line number) : ");
-    fgets(line, 10, stdin);
-
-    printf("\nPlease enter a modification : ");
-    fgets(buff, BUF_SIZE, stdin);
-
-    sprintf(send_modify, "%s%s", line, buff);
+    memset(source, 0, BUF_SIZE);
     write(sock, "&MODIFY&", 9);
-    write(sock, send_modify, strlen(send_modify));
-
-    system("clear");
-    printf("<current source code>\n\n");  //stdin 출력
-    print_source(source, BUF_SIZE);
-    putchar('\n');
-    print_help();
-
+    printf("\nPlease enter a modification line and text: ");
+    fgets(buff, BUF_SIZE, stdin);
+    write(sock, buff, sizeof(buff));
     return ;
   }
 
   else write(sock, msg , strlen(msg)); //null 문자 제외하고 서버로 문자열 보냄
 }
 
-void compile_code(){
-  FILE *src = fopen("sample.c", "w");
+void compile_code(char *code_name, char *exe_name){
+  FILE *src = fopen(code_name, "w");
+  char command[100];
 
   for(int i = 0; i < BUF_SIZE; i++){
     if(source[i] == '\0')
@@ -156,7 +149,8 @@ void compile_code(){
 
   fwrite(source, sizeof(char), BUF_SIZE - 1, src);
   fclose(src);
-  system("gcc -o sample sample.c");
+  sprintf(command, "%s %s %s", "gcc -o", exe_name, code_name);
+  system(command);
 }
 
 void print_source(char *code, int length){
@@ -170,6 +164,7 @@ void print_source(char *code, int length){
       i++;
       continue;
     }
+
     putchar(code[i]);
     i++;
   }
