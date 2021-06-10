@@ -15,7 +15,6 @@ void print_help();
 void handle_command(char *msg, int sock);
 void compile_code();
 void print_source(char *code, int length);
-void modify_source(int line, char *buff);
 
 char source[BUF_SIZE];
 
@@ -121,23 +120,26 @@ void handle_command(char *msg, int sock){
   }
 
   else if(!strcmp(msg, "#n\n") || !strcmp(msg, "#N\n")){  //소스코드 수정
-    /*
-    int line = 0;
+    char line[10];
     char buff[BUF_SIZE];
+    char send_modify[BUF_SIZE + sizeof(line)];
 
     printf("\nWhich line do you want to modify? (please enter the line number) : ");
-    scanf("%d", &line);
+    fgets(line, 10, stdin);
+
     printf("\nPlease enter a modification : ");
     fgets(buff, BUF_SIZE, stdin);
-    modify_source(line, buff);
+
+    sprintf(send_modify, "%s%s", line, buff);
     write(sock, "&MODIFY&", 9);
-    write(sock, source, BUF_SIZE);
+    write(sock, send_modify, strlen(send_modify));
+
     system("clear");
     printf("<current source code>\n\n");  //stdin 출력
     print_source(source, BUF_SIZE);
     putchar('\n');
     print_help();
-    */
+
     return ;
   }
 
@@ -172,40 +174,3 @@ void print_source(char *code, int length){
     i++;
   }
 }
-/*
-void modify_source(int line, char *buff){
-  int i = 0, count = 0, front, rear;
-  int buff_size = strlen(buff), source_size = strlen(source);
-  char modify_buff[BUF_SIZE];
-  memset(modify_buff, 0, BUF_SIZE);
-
-  while(source[i] != '\0'){
-    if(source[i] == '\n')
-      count++;
-
-    if(count == line)
-      break;
-
-    i++;
-  }
-
-  rear = i--;
-
-  while(source[i] != '\n'){
-    i--;
-  }
-
-  front = i;
-
-  for(int i = 0; i < front; i++)
-    modify_buff[i] = source[i];
-
-  buff[buff_size] = '\n';
-
-  memmove(modify_buff + (front + 1), buff, buff_size);
-  memmove(modify_buff + (front + buff_size + 1), source + (rear + 1), source_size - rear);
-  memset(source, 0, BUF_SIZE);
-  memmove(source, modify_buff, BUF_SIZE);
-  //printf("front is %d, rear is %d\n", front, rear);
-}
-*/
