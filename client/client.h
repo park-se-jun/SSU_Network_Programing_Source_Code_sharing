@@ -7,6 +7,8 @@
 #include <pthread.h>
 #include <ncurses.h>
 #define BUF_SIZE 8192
+#define EDIT_MODE 0
+#define COMMAND_MODE 1
 
 void *send_msg(void *arg);
 void *recv_msg(void *arg);
@@ -17,7 +19,7 @@ void compile_code(char *code_name, char *exe_name);
 void print_source(char *code, int length);
 
 char source[BUF_SIZE];
-
+int command_mode_flag = COMMAND_MODE;
 //서버로 텍스트 송신
 void* send_msg(void* arg){
   int sock = *((int*)arg);  //클라이언트 소켓 FD
@@ -199,4 +201,42 @@ void init_window(){
   recv_window = create_new_win(sorce_y,sorce_x,0,0);
   send_window = create_new_win(command_y,command_x,sorce_y,0);
 
+}
+void update_sorce_window(int pos,char* code){
+}
+void update_command_window(int mode){
+  switch (mode)
+  {
+  case EDIT_MODE:
+    /* code */
+    break;
+  case COMMAND_MODE:
+  default:
+    break;
+  }
+}
+void edit_mode(char* buff){
+  noraw();
+  echo();
+  keypad(stdscr,FALSE);
+  wclear(send_window);
+  mvwprintw(send_window,0,0,"[edit mode]");
+  mvwprintw(send_window,1,1,"<Input text> : ");
+  box(send_window,0,0);
+  return;
+}
+void command_mode(){
+  raw();
+  noecho();
+  keypad(stdscr,TRUE);
+  char ch=getch();
+  switch (ch)
+  {
+  case KEY_F(1):
+    /* code */
+    break;
+  
+  default:
+    break;
+  }
 }
