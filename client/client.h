@@ -29,7 +29,6 @@ void select_mode(int* mode);
 void print_input_text_mode();
 void print_select_mode();
 char source[BUF_SIZE];
-int command_mode_flag = COMMAND_MODE;
 //서버로 텍스트 송신
 void* send_msg(void* arg){
   int sock = *((int*)arg);  //클라이언트 소켓 FD
@@ -218,7 +217,7 @@ void init_window(){
 }
 void update_sorce_window(int page,char* code){
   wclear(recv_window);
-  for(int 1 = 1; i<getmaxy(stdscr)-COMMAND_Y; i++){
+  for(int i = 1; i<getmaxy(stdscr)-COMMAND_Y; i++){
     
   }
 }
@@ -270,9 +269,9 @@ void print_select_mode(){
 void exec_mode(int mode){
   switch (mode)
   {
-  case :
-    /* code */
-    break;
+  // case :
+  //   /* code */
+  //   break;
   
   default:
     break;
@@ -280,7 +279,7 @@ void exec_mode(int mode){
 }
 void select_mode(int* mode){
   print_select_mode();
-  char ch;
+  int ch;
   while(1){
     switch (ch=getch())
     {
