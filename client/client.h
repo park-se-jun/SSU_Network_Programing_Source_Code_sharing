@@ -5,7 +5,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <pthread.h>
-
+#include <ncurses.h>
 #define BUF_SIZE 8192
 
 void *send_msg(void *arg);
