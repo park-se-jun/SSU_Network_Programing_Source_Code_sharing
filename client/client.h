@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <pthread.h>
 #include <ncurses.h>
+#include<semaphore.h>
 #define BUF_SIZE 8192
 #define INPUT_TEXT_MODE 0
 #define QUIT 1
@@ -15,7 +16,7 @@
 #define PAGE_UP 5
 #define PAGE_DOWN 6
 
-#define COMMAND_Y 8
+#define COMMAND_Y 9
 void *send_msg(void *arg);
 void *recv_msg(void *arg);
 void error_print(char *msg);
@@ -28,19 +29,23 @@ void set_input_posible(bool i);
 void select_mode(int* mode);
 void print_input_text_mode();
 void print_select_mode();
+
+sem_t semaphore;
 char source[BUF_SIZE];
 //서버로 텍스트 송신
 void* send_msg(void* arg){
   int sock = *((int*)arg);  //클라이언트 소켓 FD
   char msg[BUF_SIZE];
   int mode;
-  system("clear");
+  // system("clear");
   // print_help();
 
   while(1){ //Command line에서 문자열을 입력받아 서버에 전송.
+  sem_wait(&semaphore);
     select_mode(&mode);
     // fgets(msg, BUF_SIZE, stdin);
     handle_command(msg, sock);
+    sem_post(&semaphore);
   }
 
   return NULL;
@@ -53,21 +58,23 @@ void *recv_msg(void *arg){
   int str_len;
 
   while (1){
+    sem_wait(&semaphore);
     str_len = read(sock, msg, BUF_SIZE - 1);
     //read 실패시
     if(str_len == -1)
       return NULL;
 
     msg[str_len] = '\0';
-    system("clear");
-    printf("<current source code>\n\n");  //stdin 출력
-    print_source(msg, str_len);
-    putchar('\n');
+    // system("clear");
+    // printf("<current source code>\n\n");  //stdin 출력
+    // print_source(msg, str_len);
+    // putchar('\n');
 
     memset(source, 0, BUF_SIZE);
     memmove(source, msg, str_len - 1);
     memset(msg, 0, BUF_SIZE);
     // print_help();
+    sem_post(&semaphore);
   }
 
   return NULL;
@@ -118,7 +125,7 @@ void handle_command(char *msg, int sock){
 
     if(!strcmp(buff, "Y\n") || !strcmp(buff, "y\n")){
       write(sock, "&CLEAR&", 8);
-      system("clear");
+      // system("clear");
       printf("<current source code>\n\n");  //stdin 출력
       memset(source, 0, BUF_SIZE);
       print_source(source, 0);
@@ -128,7 +135,7 @@ void handle_command(char *msg, int sock){
     }
 
     else{
-      system("clear");
+      // system("clear");
       printf("<current source code>\n\n");  //stdin 출력
       memset(source, 0, BUF_SIZE);
       print_source(source, 0);
@@ -188,7 +195,7 @@ WINDOW  *send_window, *recv_window;
 
 WINDOW* create_new_win(const int height, const int width,const int start_y,const int start_x){
   WINDOW* local_win = newwin(height,width,start_y,start_x);
-  // box(local_win,0,0);
+  box(local_win,0,0);
   wrefresh(local_win);
   return local_win;
 }
@@ -198,7 +205,7 @@ void init_window(){
   getmaxyx(stdscr,max_y,max_x);
   sorce_x = max_x;
   command_x = max_x;
-  if(max_y < 16){
+  if(max_y < 18){
     printf("terminal is too small\n");
     exit(1);
   }
@@ -254,8 +261,7 @@ void print_input_text_mode(){
 }
 void print_select_mode(){
   wclear(send_window);
-  box(send_window,0,0);
-  mvwprintw(send_window, 0, 0, "[select mode]\n");
+
   mvwprintw(send_window, 1, 1, "[q = exit]\n");
   mvwprintw(send_window, 2, 1, "[F1  = compile]\n");
   mvwprintw(send_window, 3, 1, "[F2 = row n modify]\n");
@@ -263,6 +269,8 @@ void print_select_mode(){
   mvwprintw(send_window, 5, 1, "[i = change to input mode]\n");
   mvwprintw(send_window, 6, 1, "[press UP or DOWN = move page]");
   set_input_posible(false);
+  box(send_window,0,0);
+  mvwprintw(send_window, 0, 0, "[select mode]");
   wrefresh(send_window);
   return;
 }
@@ -281,7 +289,8 @@ void select_mode(int* mode){
   print_select_mode();
   int ch;
   while(1){
-    switch (ch=getch())
+    ch=wgetch(send_window);
+    switch (ch)
     {
     case 'q':
       *mode = QUIT;
