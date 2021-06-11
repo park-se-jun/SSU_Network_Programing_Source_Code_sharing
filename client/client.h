@@ -169,3 +169,34 @@ void print_source(char *code, int length){
     i++;
   }
 }
+
+//ncurses  관련 함수
+WINDOW  *send_window, *recv_window;
+
+WINDOW* create_new_win(const int height, const int width,const int start_y,const int start_x){
+  WINDOW* local_win = newwin(height,width,start_y,start_x);
+  // box(local_win,0,0);
+  wrefresh(local_win);
+  return local_win;
+}
+
+void init_window(){
+  int max_x,max_y,command_x,command_y,sorce_x,sorce_y;
+  getmaxyx(stdscr,max_y,max_x);
+  sorce_x = max_x;
+  command_x = max_x;
+  if(max_y < 14){
+    printf("terminal is too small\n");
+    exit(1);
+  }
+  if(max_y/3<=7){
+    command_y = 7;
+    sorce_y = max_y - command_y;
+  }else{
+    command_y = max_y/3;
+    sorce_y = max_y - command_y;
+  }
+  recv_window = create_new_win(sorce_y,sorce_x,0,0);
+  send_window = create_new_win(command_y,command_x,sorce_y,0);
+
+}
