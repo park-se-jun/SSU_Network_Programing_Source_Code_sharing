@@ -7,9 +7,14 @@
 #include <pthread.h>
 #include <ncurses.h>
 #define BUF_SIZE 8192
-#define EDIT_MODE 0
+#define INPUT_TEXT_MODE 0
 #define COMMAND_MODE 1
-
+#define QUIT 3
+#define COMPILE 4
+#define MODIFY 5
+#define CLEAR 6
+#define PAGE_UP 7
+#define PAGE_DOWN 8
 void *send_msg(void *arg);
 void *recv_msg(void *arg);
 void error_print(char *msg);
@@ -187,12 +192,12 @@ void init_window(){
   getmaxyx(stdscr,max_y,max_x);
   sorce_x = max_x;
   command_x = max_x;
-  if(max_y < 14){
+  if(max_y < 16){
     printf("terminal is too small\n");
     exit(1);
   }
-  if(max_y/3<=7){
-    command_y = 7;
+  if(max_y/3<=8){
+    command_y = 8;
     sorce_y = max_y - command_y;
   }else{
     command_y = max_y/3;
@@ -215,28 +220,70 @@ void update_command_window(int mode){
     break;
   }
 }
-void edit_mode(char* buff){
-  noraw();
-  echo();
-  keypad(stdscr,FALSE);
+void set_input_posible(bool i){
+  if(i==TRUE){
+    noraw();
+    echo();
+    keypad(stdscr,FALSE);
+  }else{
+    raw();
+    noecho();
+    keypad(stdscr,TRUE);
+  }
+}
+void print_input_text_mode(){
   wclear(send_window);
-  mvwprintw(send_window,0,0,"[edit mode]");
-  mvwprintw(send_window,1,1,"<Input text> : ");
   box(send_window,0,0);
+  mvwprintw(send_window,0,0,"[input mode]");
+  mvwprintw(send_window,1,1,"<Input text> : ");
+  set_input_posible(true);
+  wrefresh(send_window);
+  return ;
+}
+void print_select_mode(){
+  wclear(send_window);
+  box(send_window,0,0);
+  mvwprintw(send_window, 0, 0, "[select mode]\n");
+  mvwprintw(send_window, 1, 1, "[q = exit]\n");
+  mvwprintw(send_window, 2, 1, "[F1  = compile]\n");
+  mvwprintw(send_window, 3, 1, "[F2 = row n modify]\n");
+  mvwprintw(send_window, 4, 1, "[F5 = Source code clean]\n");
+  mvwprintw(send_window, 5, 1, "[i = change to input mode]\n");
+  mvwprintw(send_window, 6, 1, "[press UP or DOWN = move page]");
+  set_input_posible(false);
+  wrefresh(send_window);
   return;
 }
-void command_mode(){
-  raw();
-  noecho();
-  keypad(stdscr,TRUE);
-  char ch=getch();
-  switch (ch)
-  {
-  case KEY_F(1):
-    /* code */
-    break;
-  
-  default:
-    break;
+
+void select_mode(int* mode){
+  print_select_mode();
+  char ch;
+  while(1){
+    switch (ch=getch())
+    {
+    case 'q':
+      *mode = QUIT;
+      return;
+    case KEY_F(1):
+      *mode = COMPILE;
+      return;
+    case KEY_F(2):
+      *mode = MODIFY;
+      return;
+    case KEY_F(5):
+      *mode = CLEAR;
+      return;
+    case 'i':
+      *mode = INPUT_TEXT_MODE;
+      return;
+    case KEY_UP:
+      *mode = PAGE_UP;
+      return;
+    case KEY_DOWN:
+      *mode = PAGE_DOWN;
+      return;
+    default:
+      break;
+    }
   }
 }
