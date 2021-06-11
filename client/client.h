@@ -21,7 +21,7 @@ void *send_msg(void *arg);
 void *recv_msg(void *arg);
 void error_print(char *msg);
 void print_help();
-void handle_command(char *msg, int sock);
+void handle_command(int mode, int sock);
 void compile_code(char *code_name, char *exe_name);
 void print_source(char *code, int length);
 
@@ -30,6 +30,7 @@ void select_mode(int* mode);
 void print_input_text_mode();
 void print_select_mode();
 
+WINDOW  *send_window, *recv_window;
 sem_t semaphore;
 char source[BUF_SIZE];
 //서버로 텍스트 송신
@@ -44,7 +45,7 @@ void* send_msg(void* arg){
   sem_wait(&semaphore);
     select_mode(&mode);
     // fgets(msg, BUF_SIZE, stdin);
-    handle_command(msg, sock);
+    handle_command(mode, sock);
     sem_post(&semaphore);
   }
 
@@ -99,63 +100,76 @@ void print_help(){
   fflush(stdout);
 }
 
-void handle_command(char *msg, int sock){
-  char buff[10], code_name[20], exe_name[20];
-
-  if(!strcmp(msg, "q\n") || !strcmp(msg, "Q\n")){ //클라이언트 종료
+void handle_command(int mode, int sock){
+  char buff[BUFSIZ], code_name[20], exe_name[20];
+  if(mode == INPUT_TEXT_MODE){
+    print_input_text_mode();
+    wscanw(send_window,"%[^\n]s",buff);
+    int str_len = strlen(buff);
+    buff[str_len]='\n';
+    buff[str_len+1]='\0';
+    write(sock, buff , strlen(buff));//null 문자 제외하고 서버로 문자열 보냄
+  }
+  else if(mode == QUIT){ //클라이언트 종료
       close(sock);
       exit(1);
-  }
-
-  else if(!strcmp(msg, "exe\n") || !strcmp(msg, "EXE\n")){ //소스코드 컴파일 후 종료
-    printf("\nPlease enter source file name (example : hello.c) : ");
-    scanf("%s", code_name);
-
-    printf("\nPlease enter execute file name (example : hello) : ");
-    scanf("%s", exe_name);
-
+  }else if(mode == COMPILE){ //소스코드 컴파일 후 종료
+    wclear(send_window);
+    mvwprintw(send_window,1,1,"Please enter source file name (example : hello.c) : ");
+    wrefresh(send_window);
+    // printf("\nPlease enter source file name (example : hello.c) : ");
+    // scanf("%s", code_name);
+    wscanw(send_window,"%s",code_name);
+    mvwprintw(send_window,2,1,"Please enter execute file name (example : hello) : ");
+    wrefresh(send_window);
+    wscanw(send_window,"%s",exe_name);
+    // printf("\nPlease enter execute file name (example : hello) : ");
+    // scanf("%s", exe_name);
     compile_code(code_name, exe_name);
     close(sock);
     exit(1);
   }
-
-  else if(!strcmp(msg, "cls\n") || !strcmp(msg, "CLS\n")){ //소스코드 클리어
-    printf("\nDo you want source code clean ? (Y/N) : ");
-    fgets(buff, 10, stdin);
+  else if(mode == CLEAR){ //소스코드 클리어
+    wclear(send_window);
+    mvwprintw(send_window,1,1,"Do you want source code clean ? (Y/N) : ");
+    wrefresh(send_window);
+    // printf("\nDo you want source code clean ? (Y/N) : ");
+    wscanw(send_window,"%s",buff);
+    // fgets(buff, 10, stdin);
 
     if(!strcmp(buff, "Y\n") || !strcmp(buff, "y\n")){
       write(sock, "&CLEAR&", 8);
       // system("clear");
-      printf("<current source code>\n\n");  //stdin 출력
+      // printf("<current source code>\n\n");  //stdin 출력
       memset(source, 0, BUF_SIZE);
-      print_source(source, 0);
-      putchar('\n');
-      print_help();
+      // print_source(source, 0);
+      // putchar('\n');
+      // print_help();
       return ;
     }
-
     else{
       // system("clear");
-      printf("<current source code>\n\n");  //stdin 출력
-      memset(source, 0, BUF_SIZE);
-      print_source(source, 0);
-      putchar('\n');
-      print_help();
+      // printf("<current source code>\n\n");  //stdin 출력
+      // memset(source, 0, BUF_SIZE);
+      // print_source(source, 0);
+      // putchar('\n');
+      // print_help();
       return ;
     }
   }
-
-  else if(!strcmp(msg, "#n\n") || !strcmp(msg, "#N\n")){  //소스코드 수정
+  else if(mode == MODIFY){  //소스코드 수정
     char buff[BUF_SIZE];
     memset(source, 0, BUF_SIZE);
     write(sock, "&MODIFY&", 9);
-    printf("\nPlease enter a modification line and text: ");
-    fgets(buff, BUF_SIZE, stdin);
+    wclear(send_window);
+    mvwprintw(send_window,1,1,"Please enter a modification line and text: ");
+    wrefresh(send_window);
+    wscanw(send_window,"%[^\n]s",buff);
+    // printf("\nPlease enter a modification line and text: ");
+    // fgets(buff, BUF_SIZE, stdin);
     write(sock, buff, sizeof(buff));
     return ;
   }
-
-  else write(sock, msg , strlen(msg)); //null 문자 제외하고 서버로 문자열 보냄
 }
 
 void compile_code(char *code_name, char *exe_name){
@@ -191,7 +205,7 @@ void print_source(char *code, int length){
 }
 
 //ncurses  관련 함수
-WINDOW  *send_window, *recv_window;
+
 
 WINDOW* create_new_win(const int height, const int width,const int start_y,const int start_x){
   WINDOW* local_win = newwin(height,width,start_y,start_x);
@@ -274,22 +288,11 @@ void print_select_mode(){
   wrefresh(send_window);
   return;
 }
-void exec_mode(int mode){
-  switch (mode)
-  {
-  // case :
-  //   /* code */
-  //   break;
-  
-  default:
-    break;
-  }
-}
 void select_mode(int* mode){
   print_select_mode();
   int ch;
   while(1){
-    ch=wgetch(send_window);
+    ch = wgetch(send_window);
     switch (ch)
     {
     case 'q':
