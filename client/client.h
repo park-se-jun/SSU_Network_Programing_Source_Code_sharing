@@ -14,6 +14,8 @@
 #define CLEAR 4
 #define PAGE_UP 5
 #define PAGE_DOWN 6
+
+#define COMMAND_Y 8
 void *send_msg(void *arg);
 void *recv_msg(void *arg);
 void error_print(char *msg);
@@ -66,7 +68,7 @@ void *recv_msg(void *arg){
     memset(source, 0, BUF_SIZE);
     memmove(source, msg, str_len - 1);
     memset(msg, 0, BUF_SIZE);
-    print_help();
+    // print_help();
   }
 
   return NULL;
@@ -201,19 +203,24 @@ void init_window(){
     printf("terminal is too small\n");
     exit(1);
   }
-  if(max_y/3<=8){
-    command_y = 8;
-    sorce_y = max_y - command_y;
-  }else{
-    command_y = max_y/3;
-    sorce_y = max_y - command_y;
-  }
+  // if(max_y/3<=8){
+  //   command_y = 8;
+  //   sorce_y = max_y - command_y;
+  // }else{
+  //   command_y = max_y/3;
+  //   sorce_y = max_y - command_y;
+  // }
+  command_y = COMMAND_Y;
+  sorce_y = max_y - command_y;
   recv_window = create_new_win(sorce_y,sorce_x,0,0);
   send_window = create_new_win(command_y,command_x,sorce_y,0);
 
 }
-void update_sorce_window(int pos,char* code){
-
+void update_sorce_window(int page,char* code){
+  wclear(recv_window);
+  for(int 1 = 1; i<getmaxy(stdscr)-COMMAND_Y; i++){
+    
+  }
 }
 // void update_command_window(int mode){
 //   switch (mode)
