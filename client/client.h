@@ -8,13 +8,12 @@
 #include <ncurses.h>
 #define BUF_SIZE 8192
 #define INPUT_TEXT_MODE 0
-#define COMMAND_MODE 1
-#define QUIT 3
-#define COMPILE 4
-#define MODIFY 5
-#define CLEAR 6
-#define PAGE_UP 7
-#define PAGE_DOWN 8
+#define QUIT 1
+#define COMPILE 2
+#define MODIFY 3
+#define CLEAR 4
+#define PAGE_UP 5
+#define PAGE_DOWN 6
 void *send_msg(void *arg);
 void *recv_msg(void *arg);
 void error_print(char *msg);
@@ -23,17 +22,23 @@ void handle_command(char *msg, int sock);
 void compile_code(char *code_name, char *exe_name);
 void print_source(char *code, int length);
 
+void set_input_posible(bool i);
+void select_mode(int* mode);
+void print_input_text_mode();
+void print_select_mode();
 char source[BUF_SIZE];
 int command_mode_flag = COMMAND_MODE;
 //서버로 텍스트 송신
 void* send_msg(void* arg){
   int sock = *((int*)arg);  //클라이언트 소켓 FD
   char msg[BUF_SIZE];
+  int mode;
   system("clear");
-  print_help();
+  // print_help();
 
   while(1){ //Command line에서 문자열을 입력받아 서버에 전송.
-    fgets(msg, BUF_SIZE, stdin);
+    select_mode(&mode);
+    // fgets(msg, BUF_SIZE, stdin);
     handle_command(msg, sock);
   }
 
@@ -208,18 +213,19 @@ void init_window(){
 
 }
 void update_sorce_window(int pos,char* code){
+
 }
-void update_command_window(int mode){
-  switch (mode)
-  {
-  case EDIT_MODE:
-    /* code */
-    break;
-  case COMMAND_MODE:
-  default:
-    break;
-  }
-}
+// void update_command_window(int mode){
+//   switch (mode)
+//   {
+//   case EDIT_MODE:
+//     /* code */
+//     break;
+//   case COMMAND_MODE:
+//   default:
+//     break;
+//   }
+// }
 void set_input_posible(bool i){
   if(i==TRUE){
     noraw();
@@ -254,7 +260,17 @@ void print_select_mode(){
   wrefresh(send_window);
   return;
 }
-
+void exec_mode(int mode){
+  switch (mode)
+  {
+  case :
+    /* code */
+    break;
+  
+  default:
+    break;
+  }
+}
 void select_mode(int* mode){
   print_select_mode();
   char ch;
