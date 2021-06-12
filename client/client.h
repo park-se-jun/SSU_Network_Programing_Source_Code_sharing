@@ -7,13 +7,6 @@
 #include <pthread.h>
 #include <ncurses.h>
 #include<semaphore.h>
-#ifndef max
-#define max(a,b)  (((a) > (b)) ? (a) : (b))
-#endif
-
-#ifndef min
-#define min(a,b)  (((a) < (b)) ? (a) : (b))
-#endif
 
 #define BUF_SIZE 8192
 #define INPUT_TEXT_MODE 0
@@ -28,7 +21,6 @@
 void *send_msg(void *arg);
 void *recv_msg(void *arg);
 void error_print(char *msg);
-void print_help();
 void handle_command(int mode, int sock);
 void compile_code(char *code_name, char *exe_name);
 void print_source(char *code, int start);
@@ -47,13 +39,9 @@ void* send_msg(void* arg){
   int sock = *((int*)arg);  //클라이언트 소켓 FD
   char msg[BUF_SIZE];
   int mode;
-  // system("clear");
-  // print_help();
-
   while(1){ //Command line에서 문자열을 입력받아 서버에 전송.
   sem_wait(&semaphore);
     select_mode(&mode);
-    // fgets(msg, BUF_SIZE, stdin);
     handle_command(mode, sock);
     sem_post(&semaphore);
   }
@@ -75,16 +63,10 @@ void *recv_msg(void *arg){
       return NULL;
 
     msg[str_len] = '\0';
-    // system("clear");
-    // printf("<current source code>\n\n");  //stdin 출력
-    // print_source(msg, str_len);
-    // putchar('\n');
     print_source(msg,start_line);
     memset(source, 0, BUF_SIZE);
     memmove(source, msg, str_len - 1);
     memset(msg, 0, BUF_SIZE);
-    // print_help();
-   
     sem_post(&semaphore);
     
   }
@@ -99,17 +81,6 @@ void error_print(char *msg){
   exit(1);
 }
 
-// void print_help(){
-//   fflush(stdout);
-//   printf("\n\n= = = = [command] = = = =");
-//   printf("\n[q or Q = exit]");
-//   printf("\n[exe or EXE = compile]");
-//   printf("\n[cls or CLS = Source code clean]");
-//   printf("\n[#n = row n modify]");
-//   printf("\n= = = = = = = = = = = = =");
-//   printf("\nInput text : ");
-//   fflush(stdout);
-// }
 
 void handle_command(int mode, int sock){
   char buff[BUFSIZ], code_name[20], exe_name[20];
@@ -130,15 +101,10 @@ void handle_command(int mode, int sock){
     wclear(send_window);
     box(send_window,0,0);
     mvwprintw(send_window,1,1,"Please enter source file name (example : hello.c) : ");
-    // wrefresh(send_window);
-    // printf("\nPlease enter source file name (example : hello.c) : ");
-    // scanf("%s", code_name);
+
     wscanw(send_window,"%s",code_name);
     mvwprintw(send_window,2,1,"Please enter execute file name (example : hello) : ");
-    // wrefresh(send_window);
     wscanw(send_window,"%s",exe_name);
-    // printf("\nPlease enter execute file name (example : hello) : ");
-    // scanf("%s", exe_name);
     endwin();
     system("clear");
     compile_code(code_name, exe_name);
@@ -150,29 +116,19 @@ void handle_command(int mode, int sock){
     wclear(send_window);
     box(send_window,0,0);
     mvwprintw(send_window,1,1,"Do you want source code clean ? (Y/N) : ");
-    // wrefresh(send_window);
-    // printf("\nDo you want source code clean ? (Y/N) : ");
+
     wscanw(send_window,"%s",buff);
-    // fgets(buff, 10, stdin);
+
 
     if(!strcmp(buff, "Y") || !strcmp(buff, "y")){
       write(sock, "&CLEAR&", 8);
-      // system("clear");
-      // printf("<current source code>\n\n");  //stdin 출력
       memset(source, 0, BUF_SIZE);
       start_line =1;
       print_source(source,start_line);
-      // putchar('\n');
-      // print_help();
+
       return ;
     }
     else{
-      // system("clear");
-      // printf("<current source code>\n\n");  //stdin 출력
-      // memset(source, 0, BUF_SIZE);
-      // print_source(source, 0);
-      // putchar('\n');
-      // print_help();
       return ;
     }
   }
@@ -182,10 +138,7 @@ void handle_command(int mode, int sock){
     write(sock, "&MODIFY&", 9);
     wclear(send_window);
     mvwprintw(send_window,1,1,"Please enter a modification line and text: ");
-    // wrefresh(send_window);
     wscanw(send_window,"%[^\n]s",buff);
-    // printf("\nPlease enter a modification line and text: ");
-    // fgets(buff, BUF_SIZE, stdin);
     write(sock, buff, sizeof(buff));
     return ;
   }else if(mode == PAGE_UP){
@@ -221,18 +174,11 @@ void print_source(char *code,int start){
   char strings[BUFSIZ];
   memcpy(strings,code,BUFSIZ);
   wclear(recv_window);
-  
-  // printf("%d ", line++);
   char *ptr = strtok(strings, "\n");
   while (ptr != NULL)
   {
     line++;
-    // if(line<start){
-    //   ptr = strtok(NULL, "\n");
-    //   continue;
-    // }
     lines[line] = ptr;    
-    // mvwprintw(recv_window, i, 1, "%d %s\n",line, ptr);
     ptr = strtok(NULL, "\n");
 
   }
@@ -241,17 +187,8 @@ void print_source(char *code,int start){
     mvwprintw(recv_window, j, 1, "%d %s\n",i, lines[i]);
     j++;
   }
-    // if(code[i] == '\n'){
-    //   putchar(code[i]);
-    //   printf("%d ", line++);
-
-    //   continue;
-    // }
-    // putchar(code[i]);
-    // i++;
   box(recv_window,0,0);
   mvwprintw(recv_window,0,0,"<current source code>");
-  // wrefresh(recv_window);
   sem_post(&semaphore);
 }
 
@@ -262,7 +199,6 @@ WINDOW* create_new_win(const int height, const int width,const int start_y,const
   WINDOW* local_win = newwin(height,width,start_y,start_x);
   immedok(local_win,true);
   box(local_win,0,0);
-  // wrefresh(local_win);
   return local_win;
 }
 
@@ -276,13 +212,6 @@ void init_window(){
     endwin();
     exit(1);
   }
-  // if(max_y/3<=8){
-  //   command_y = 8;
-  //   source_y = max_y - command_y;
-  // }else{
-  //   command_y = max_y/3;
-  //   source_y = max_y - command_y;
-  // }
   command_y = COMMAND_Y;
   source_y = max_y - command_y;
   recv_window = create_new_win(source_y,source_x,0,0);
@@ -295,17 +224,6 @@ void update_source_window(int page,char* code){
     
   }
 }
-// void update_command_window(int mode){
-//   switch (mode)
-//   {
-//   case EDIT_MODE:
-//     /* code */
-//     break;
-//   case COMMAND_MODE:
-//   default:
-//     break;
-//   }
-// }
 void set_input_posible(bool i){
   if(i){
     noraw();
@@ -325,7 +243,6 @@ void print_input_text_mode(){
   mvwprintw(send_window,0,0,"[input mode]");
   mvwprintw(send_window,1,1,"<Input text> : ");
   set_input_posible(true);
-  // wrefresh(send_window);
   return ;
 }
 void print_select_mode(){
@@ -340,7 +257,6 @@ void print_select_mode(){
   set_input_posible(false);
   box(send_window,0,0);
   mvwprintw(send_window, 0, 0, "[select mode]");
-  // wrefresh(send_window);
   return;
 }
 void select_mode(int* mode){
