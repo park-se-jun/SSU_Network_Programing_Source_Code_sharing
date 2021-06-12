@@ -34,14 +34,12 @@ WINDOW *send_window, *recv_window;
 sem_t semaphore;
 char source[BUF_SIZE];
 int start_line = 1;
-//서버로 텍스트 송신
 void *send_msg(void *arg)
 {
-  int sock = *((int *)arg); //클라이언트 소켓 FD
-  char msg[BUF_SIZE];
+  int sock = *((int *)arg); 
   int mode;
   while (1)
-  { //Command line에서 문자열을 입력받아 서버에 전송.
+  {
     sem_wait(&semaphore);
     select_mode(&mode);
     handle_command(mode, sock);
@@ -50,11 +48,9 @@ void *send_msg(void *arg)
 
   return NULL;
 }
-
-//서버로부터 텍스트 수신
 void *recv_msg(void *arg)
 {
-  int sock = *((int *)arg); //클라이언트의 파일 디스크립터
+  int sock = *((int *)arg); 
   char msg[BUF_SIZE];
   int str_len;
 
@@ -62,7 +58,6 @@ void *recv_msg(void *arg)
   {
     sem_wait(&semaphore);
     str_len = read(sock, msg, BUF_SIZE - 1);
-    //read 실패시
     if (str_len == -1)
       return NULL;
 
@@ -78,14 +73,6 @@ void *recv_msg(void *arg)
   return NULL;
 }
 
-//에러 처리
-void error_print(char *msg)
-{
-  fputs(msg, stderr);
-  fputc('\n', stderr);
-  exit(1);
-}
-
 void handle_command(int mode, int sock)
 {
   char buff[BUFSIZ], code_name[20], exe_name[20];
@@ -96,16 +83,16 @@ void handle_command(int mode, int sock)
     int str_len = strlen(buff);
     buff[str_len] = '\n';
     buff[str_len + 1] = '\0';
-    write(sock, buff, strlen(buff)); //null 문자 제외하고 서버로 문자열 보냄
+    write(sock, buff, strlen(buff)); 
   }
   else if (mode == QUIT)
-  { //클라이언트 종료
+  { 
     endwin();
     close(sock);
     exit(1);
   }
   else if (mode == COMPILE)
-  { //소스코드 컴파일 후 종료
+  { 
     set_input_posible(true);
     wclear(send_window);
     box(send_window, 0, 0);
@@ -120,7 +107,7 @@ void handle_command(int mode, int sock)
     exit(1);
   }
   else if (mode == CLEAR)
-  { //소스코드 클리어
+  { 
     set_input_posible(true);
     wclear(send_window);
     box(send_window, 0, 0);
@@ -142,11 +129,12 @@ void handle_command(int mode, int sock)
     }
   }
   else if (mode == MODIFY)
-  { //소스코드 수정
+  {
     set_input_posible(true);
     memset(source, 0, BUF_SIZE);
     write(sock, "&MODIFY&", 9);
     wclear(send_window);
+    box(send_window,0,0);
     mvwprintw(send_window, 1, 1, "Please enter a modification line and text: ");
     wscanw(send_window, "%[^\n]s", buff);
     write(sock, buff, sizeof(buff));
@@ -184,7 +172,7 @@ void compile_code(char *code_name, char *exe_name)
 
 void print_source(char *code, int start)
 {
-  // sem_wait(&semaphore);
+  sem_wait(&semaphore);
   int line = 0, j = 1;
   char *lines[BUFSIZ] = {
       0,
@@ -207,10 +195,9 @@ void print_source(char *code, int start)
   }
   box(recv_window, 0, 0);
   mvwprintw(recv_window, 0, 0, "<current source code>");
-  // sem_post(&semaphore);
+  sem_post(&semaphore);
 }
 
-//ncurses  관련 함수
 
 WINDOW *create_new_win(const int height, const int width, const int start_y, const int start_x)
 {
@@ -238,13 +225,7 @@ void init_window()
   send_window = create_new_win(command_y, command_x, source_y, 0);
   mvwprintw(recv_window, 0, 0, "<current source code>");
 }
-void update_source_window(int page, char *code)
-{
-  wclear(recv_window);
-  for (int i = 1; i < getmaxy(stdscr) - COMMAND_Y; i++)
-  {
-  }
-}
+
 void set_input_posible(bool i)
 {
   if (i)
