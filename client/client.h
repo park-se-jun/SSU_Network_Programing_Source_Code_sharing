@@ -7,6 +7,14 @@
 #include <pthread.h>
 #include <ncurses.h>
 #include<semaphore.h>
+#ifndef max
+#define max(a,b)  (((a) > (b)) ? (a) : (b))
+#endif
+
+#ifndef min
+#define min(a,b)  (((a) < (b)) ? (a) : (b))
+#endif
+
 #define BUF_SIZE 8192
 #define INPUT_TEXT_MODE 0
 #define QUIT 1
@@ -23,7 +31,7 @@ void error_print(char *msg);
 void print_help();
 void handle_command(int mode, int sock);
 void compile_code(char *code_name, char *exe_name);
-void print_source(char *code, int length);
+void print_source(char *code, int start);
 
 void set_input_posible(bool i);
 void select_mode(int* mode);
@@ -33,6 +41,7 @@ void print_select_mode();
 WINDOW  *send_window, *recv_window;
 sem_t semaphore;
 char source[BUF_SIZE];
+int start_line=1;
 //서버로 텍스트 송신
 void* send_msg(void* arg){
   int sock = *((int*)arg);  //클라이언트 소켓 FD
@@ -75,7 +84,9 @@ void *recv_msg(void *arg){
     memmove(source, msg, str_len - 1);
     memset(msg, 0, BUF_SIZE);
     // print_help();
+    print_source(source,start_line);
     sem_post(&semaphore);
+    
   }
 
   return NULL;
@@ -88,17 +99,17 @@ void error_print(char *msg){
   exit(1);
 }
 
-void print_help(){
-  fflush(stdout);
-  printf("\n\n= = = = [command] = = = =");
-  printf("\n[q or Q = exit]");
-  printf("\n[exe or EXE = compile]");
-  printf("\n[cls or CLS = Source code clean]");
-  printf("\n[#n = row n modify]");
-  printf("\n= = = = = = = = = = = = =");
-  printf("\nInput text : ");
-  fflush(stdout);
-}
+// void print_help(){
+//   fflush(stdout);
+//   printf("\n\n= = = = [command] = = = =");
+//   printf("\n[q or Q = exit]");
+//   printf("\n[exe or EXE = compile]");
+//   printf("\n[cls or CLS = Source code clean]");
+//   printf("\n[#n = row n modify]");
+//   printf("\n= = = = = = = = = = = = =");
+//   printf("\nInput text : ");
+//   fflush(stdout);
+// }
 
 void handle_command(int mode, int sock){
   char buff[BUFSIZ], code_name[20], exe_name[20];
@@ -111,10 +122,13 @@ void handle_command(int mode, int sock){
     write(sock, buff , strlen(buff));//null 문자 제외하고 서버로 문자열 보냄
   }
   else if(mode == QUIT){ //클라이언트 종료
+      endwin();
       close(sock);
       exit(1);
   }else if(mode == COMPILE){ //소스코드 컴파일 후 종료
+    set_input_posible(true);
     wclear(send_window);
+    box(send_window,0,0);
     mvwprintw(send_window,1,1,"Please enter source file name (example : hello.c) : ");
     wrefresh(send_window);
     // printf("\nPlease enter source file name (example : hello.c) : ");
@@ -127,9 +141,11 @@ void handle_command(int mode, int sock){
     // scanf("%s", exe_name);
     compile_code(code_name, exe_name);
     close(sock);
+    endwin();
     exit(1);
   }
   else if(mode == CLEAR){ //소스코드 클리어
+    set_input_posible(true);
     wclear(send_window);
     mvwprintw(send_window,1,1,"Do you want source code clean ? (Y/N) : ");
     wrefresh(send_window);
@@ -137,12 +153,13 @@ void handle_command(int mode, int sock){
     wscanw(send_window,"%s",buff);
     // fgets(buff, 10, stdin);
 
-    if(!strcmp(buff, "Y\n") || !strcmp(buff, "y\n")){
+    if(!strcmp(buff, "Y") || !strcmp(buff, "y")){
       write(sock, "&CLEAR&", 8);
       // system("clear");
       // printf("<current source code>\n\n");  //stdin 출력
       memset(source, 0, BUF_SIZE);
-      // print_source(source, 0);
+      start_line =1;
+      print_source(source,start_line);
       // putchar('\n');
       // print_help();
       return ;
@@ -158,7 +175,7 @@ void handle_command(int mode, int sock){
     }
   }
   else if(mode == MODIFY){  //소스코드 수정
-    char buff[BUF_SIZE];
+    set_input_posible(true);
     memset(source, 0, BUF_SIZE);
     write(sock, "&MODIFY&", 9);
     wclear(send_window);
@@ -169,7 +186,14 @@ void handle_command(int mode, int sock){
     // fgets(buff, BUF_SIZE, stdin);
     write(sock, buff, sizeof(buff));
     return ;
+  }else if(mode == PAGE_UP){
+    if(start_line > 1) start_line --;
+    print_source(source,start_line);
+  }else if(mode == PAGE_DOWN){
+    start_line ++;
+    print_source(source,start_line);
   }
+
 }
 
 void compile_code(char *code_name, char *exe_name){
@@ -187,21 +211,46 @@ void compile_code(char *code_name, char *exe_name){
   system(command);
 }
 
-void print_source(char *code, int length){
-  int i = 0, line = 1;
-  printf("%d. ", line++);
+void print_source(char *code,int start){
+  sem_wait(&semaphore);
 
-  while(code[i] != '\0'){
-    if(code[i] == '\n'){
-      putchar(code[i]);
-      printf("%d. ", line++);
-      i++;
-      continue;
-    }
+  int line = 0,j=1;
+  char* lines[BUFSIZ] = {0,};
+  char strings[BUFSIZ];
+  memcpy(strings,code,BUFSIZ);
+  wclear(recv_window);
+  
+  // printf("%d ", line++);
+  char *ptr = strtok(strings, "\n");
+  while (ptr != NULL)
+  {
+    line++;
+    // if(line<start){
+    //   ptr = strtok(NULL, "\n");
+    //   continue;
+    // }
+    lines[line] = ptr;    
+    // mvwprintw(recv_window, i, 1, "%d %s\n",line, ptr);
+    ptr = strtok(NULL, "\n");
 
-    putchar(code[i]);
-    i++;
   }
+  for(int i = start;i<=line;i++){
+
+    mvwprintw(recv_window, j, 1, "%d %s\n",i, lines[i]);
+    j++;
+  }
+    // if(code[i] == '\n'){
+    //   putchar(code[i]);
+    //   printf("%d ", line++);
+
+    //   continue;
+    // }
+    // putchar(code[i]);
+    // i++;
+  box(recv_window,0,0);
+  mvwprintw(recv_window,0,0,"<current sorce code>");
+  wrefresh(recv_window);
+  sem_post(&semaphore);
 }
 
 //ncurses  관련 함수
@@ -221,6 +270,7 @@ void init_window(){
   command_x = max_x;
   if(max_y < 18){
     printf("terminal is too small\n");
+    endwin();
     exit(1);
   }
   // if(max_y/3<=8){
@@ -257,11 +307,11 @@ void set_input_posible(bool i){
   if(i==TRUE){
     noraw();
     echo();
-    keypad(stdscr,FALSE);
+    keypad(send_window,FALSE);
   }else{
     raw();
     noecho();
-    keypad(stdscr,TRUE);
+    keypad(send_window,TRUE);
   }
 }
 void print_input_text_mode(){
@@ -312,9 +362,11 @@ void select_mode(int* mode){
       return;
     case KEY_UP:
       *mode = PAGE_UP;
+
       return;
     case KEY_DOWN:
       *mode = PAGE_DOWN;
+
       return;
     default:
       break;

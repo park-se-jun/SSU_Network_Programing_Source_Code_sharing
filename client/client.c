@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
     printf("usage : %s <ip> <port>\n" , argv[0]);
     exit(1);
   }
-  sem_init(&semaphore,0,2);
+  sem_init(&semaphore,0,3);
   initscr();
   init_window();
 
