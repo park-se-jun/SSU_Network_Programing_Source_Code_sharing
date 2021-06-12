@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -Wall -g -I.
 DEPS = client.h
 OBJ = client.o
-OPT = -lpthread
+OPT = -lpthread -lncurses
 
 %.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(OPT) $(CFLAGS)
